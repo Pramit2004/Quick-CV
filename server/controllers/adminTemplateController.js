@@ -123,10 +123,25 @@ export const createTemplate = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const updateTemplate = async (req, res) => {
   try {
+    // Strip _id/_v from body so Mongoose doesn't choke on immutable fields
+    const { _id, __v, ...updateFields } = req.body;
+
+    // Auto-sync customSectionDefs from sections so both are always in sync.
+    // AdminTemplateBuilder embeds fieldDefs inside each custom section object.
+    // We mirror them into customSectionDefs as the canonical store so any
+    // consumer can look them up either way.
+    if (Array.isArray(updateFields.sections)) {
+      updateFields.customSectionDefs = updateFields.sections
+        .filter((s) => s.isCustom && Array.isArray(s.fieldDefs))
+        .map((s) => ({ id: s.id, label: s.label, fieldDefs: s.fieldDefs }));
+    }
+
+    // Use explicit $set so Mixed fields (sections, globalStyle) are replaced
+    // cleanly without Mongoose merge-on-save issues
     const template = await Template.findByIdAndUpdate(
       req.params.id,
-      { ...req.body },
-      { new: true, runValidators: true }
+      { $set: updateFields },
+      { new: true, runValidators: false }
     );
     if (!template) return res.status(404).json({ message: "Template not found" });
     return res.status(200).json({ message: "Template saved", template });

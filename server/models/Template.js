@@ -18,6 +18,11 @@ const sectionStyleSchema = new mongoose.Schema(
 );
 
 // ── Section Schema ────────────────────────────────────────────
+// fieldDefs and customContent are Mixed so Mongoose never strips them.
+// Admin custom sections embed their fieldDefs directly in each section
+// object. Using Mixed lets them survive the DB round-trip untouched so
+// that Resume.sections (also Mixed) preserves them when a resume is
+// created from this template.
 const sectionSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
@@ -27,6 +32,9 @@ const sectionSchema = new mongoose.Schema(
     style: { type: sectionStyleSchema, default: () => ({}) },
     isCustom: { type: Boolean, default: false },
     inSidebar: { type: Boolean, default: false },
+    // Custom-section fields — kept as Mixed so any shape is preserved
+    fieldDefs:     { type: mongoose.Schema.Types.Mixed, default: undefined },
+    customContent: { type: mongoose.Schema.Types.Mixed, default: undefined },
   },
   { _id: false },
 );

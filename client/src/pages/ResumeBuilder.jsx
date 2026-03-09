@@ -414,18 +414,20 @@ const ResumeBuilder = () => {
   };
 
   // ── Custom section data helpers ───────────────────────────
-  // getCustomSectionData / setCustomSectionData manage the items[]
-  // array for admin-defined fieldDef sections.
+  // getCustomSectionData / setCustomSectionData manage the fields
+  // flat object for admin-defined fieldDef sections.
+  // Storage format: { id: "custom_xxx", fields: { fieldKey: value } }
+  // MUST match DynamicResumeRenderer: sectionData?.fields || {}
   const getCustomSectionData = (sectionId) =>
-    (resumeData.customSections || []).find((s) => s.id === sectionId)?.items || [];
+    (resumeData.customSections || []).find((s) => s.id === sectionId)?.fields || {};
 
-  const setCustomSectionData = (sectionId, items) => {
+  const setCustomSectionData = (sectionId, fields) => {
     setResumeData((prev) => {
       const existing = prev.customSections || [];
       const idx      = existing.findIndex((s) => s.id === sectionId);
       const updated  = idx >= 0
-        ? existing.map((s, i) => (i === idx ? { ...s, items } : s))
-        : [...existing, { id: sectionId, items }];
+        ? existing.map((s, i) => (i === idx ? { ...s, fields } : s))
+        : [...existing, { id: sectionId, fields }];
       return { ...prev, customSections: updated };
     });
   };
@@ -485,7 +487,7 @@ const ResumeBuilder = () => {
             <DynamicSectionForm
               sectionDef={activeSection.sectionDef}
               data={getCustomSectionData(activeSection.id)}
-              onChange={(items) => setCustomSectionData(activeSection.id, items)}
+              onChange={(fields) => setCustomSectionData(activeSection.id, fields)}
             />
           );
         }
