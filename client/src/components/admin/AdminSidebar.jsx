@@ -24,6 +24,7 @@ const links = [
   { to: '/admin/resumes',    label: 'Resumes',     icon: FileTextIcon },
   { to: '/admin/templates',  label: 'Templates',   icon: LayoutTemplateIcon }, // ← add this
   { to: '/admin/jd-match',   label: 'JDMatch',    icon: TargetIcon },
+  { to: '/admin/ats',        label: 'ATS Checker', icon: ShieldCheckIcon },
   { to: '/admin/feedback',   label: 'Feedback',    icon: MessageSquareIcon },
   
 ]
