@@ -24,7 +24,14 @@
     "multer": "^2.0.2",
     "openai": "^6.1.0",
     "puppeteer": "^24.37.2",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "compromise": "^14.14.4",
+    "mammoth": "^1.9.0",
+    "natural": "^8.0.1",
+    "pdf-parse": "^1.1.1",
+    "wink-eng-lite-web-model": "^1.0.0",
+    "wink-nlp": "^2.3.1",
+    "wink-nlp-utils": "^2.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

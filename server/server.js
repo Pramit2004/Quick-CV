@@ -12,6 +12,7 @@ import settingsRoutes from "./routes/settingsRoutes.js";
 import { trackActivity } from "./middlewares/trafficMiddleware.js";
 import adminRouter from "./routes/adminRoutes.js";
 import { initSocket } from "./socketServer.js";  // ← NEW
+import atsRouter from "./routes/atsRoutes.js";
 
 const app        = express();
 const PORT       = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use("/api/ai",       aiRouter);
 app.use("/api/jd-match", jdMatchRouter);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/admin",    adminRouter);
+app.use("/api/ats",      atsRouter);
 
 initSocket(httpServer);                          // ← NEW
 
