@@ -672,3 +672,22 @@ you me your insain power and make it world best ATS CHECKER and make sure that e
 
 what you think.
 */
+
+/*
+my project is big 
+and it has 2 parts
+client and server
+
+
+right now i am sharing with you is my client side
+one's you understand my project of client side
+i will share you server side code
+
+go and understend my entier project we need to present this infront of professors
+
+when you complete this the tell me, i will provide server side code as well.
+*/
+
+/*
+https://github.com/Pramit2004/Quick-CV
+you can get information from this repo */
