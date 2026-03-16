@@ -460,7 +460,7 @@ const Dashboard = () => {
       <div className='max-w-6xl mx-auto px-5 sm:px-8 py-12'>
 
         {/* Header */}
-        <div className='mb-12 flex items-end justify-between'>
+        <div className='mb-4 flex items-end justify-between'>
           <div>
             <div className='inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 mb-3'>
               <div className='size-1.5 rounded-full bg-emerald-500 animate-pulse' />
@@ -479,17 +479,17 @@ const Dashboard = () => {
         </div>
 
         {/* Action Cards */}
-        <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-14'>
+        <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-7'>
           {actionCards.map(({ label, sub, icon, onClick, iconBg, border, hoverBorder, tag, tagColor }) => (
-            <button key={label} onClick={onClick} className={`group relative bg-white ${border} border rounded-2xl p-5 text-left ${hoverBorder} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden`}>
+            <button key={label} onClick={onClick} className={`group relative bg-white ${border} border rounded-2xl p-4 text-left ${hoverBorder} hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col`}>
               <div className='absolute inset-0 bg-gradient-to-br from-emerald-50/0 to-emerald-50/0 group-hover:from-emerald-50/60 group-hover:to-transparent rounded-2xl transition-all duration-300 pointer-events-none' />
-              <span className={`absolute top-3.5 right-3.5 text-[10px] font-bold px-2 py-0.5 rounded-full border ${tagColor}`}>{tag}</span>
-              <div className={`${iconBg} text-white size-10 rounded-xl flex items-center justify-center mb-10 shadow-sm`}>{icon}</div>
-              <div>
-                <p className='text-sm font-bold text-slate-800 group-hover:text-emerald-800 transition-colors'>{label}</p>
-                <p className='text-xs text-slate-400 mt-0.5'>{sub}</p>
+              <span className={`absolute top-3 right-3 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${tagColor}`}>{tag}</span>
+              <div className={`${iconBg} text-white size-9 rounded-xl flex items-center justify-center mb-3 shadow-sm shrink-0`}>{icon}</div>
+              <div className='flex-1'>
+                <p className='text-sm font-bold text-slate-800 group-hover:text-emerald-800 transition-colors leading-tight'>{label}</p>
+                <p className='text-xs text-slate-400 mt-0.5 leading-tight'>{sub}</p>
               </div>
-              <ArrowRightIcon className='absolute bottom-4 right-4 size-4 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all duration-200' />
+              <ArrowRightIcon className='size-3.5 text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all duration-200 mt-3 self-end' />
             </button>
           ))}
         </div>
