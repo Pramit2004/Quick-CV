@@ -360,23 +360,23 @@ export function detectRepetition(bullets) {
 
 // ─────────────────────────────────────────────────────────────
 // analyzeContactInfo(personalInfo) → detailed contact analysis
+// BUG 3 FIX: LinkedIn/GitHub detected by word presence (hyperlink text in PDFs)
 // ─────────────────────────────────────────────────────────────
 export function analyzeContactInfo(info = {}) {
   const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const PHONE_RE    = /^[\+]?[\d\s\-\(\)]{10,15}$/;
-  const LINKEDIN_RE = /linkedin\.com\/in\//i;
-  const GITHUB_RE   = /github\.com\//i;
+  const PHONE_RE    = /^[\+]?[\d\s\-\(\)\.]{9,18}[\d]$/;
+  const LINKEDIN_RE = /linkedin\.com|linkedin\s*\(hyperlink\)/i;
+  const GITHUB_RE   = /github\.com|github\s*\(hyperlink\)/i;
 
   const hasEmail    = EMAIL_RE.test(info.email || '');
   const hasPhone    = PHONE_RE.test((info.phone || '').replace(/\s/g,''));
   const hasLocation = Boolean(info.location?.trim());
-  const hasLinkedIn = LINKEDIN_RE.test(info.linkedin || '');
-  const hasGitHub   = GITHUB_RE.test(info.website || '') || GITHUB_RE.test(info.linkedin || '');
+  // BUG 3 FIX: also accept "(hyperlink)" marker from parser
+  const hasLinkedIn = LINKEDIN_RE.test(info.linkedin || '') || Boolean(info.hasLinkedInWord);
+  const hasGitHub   = GITHUB_RE.test(info.website || '') || GITHUB_RE.test(info.linkedin || '') || Boolean(info.hasGitHubWord);
   const hasName     = Boolean(info.full_name?.trim());
   const hasProfTitle = Boolean(info.profession?.trim());
 
-  // Score: 3 pts max
-  // Email(1) + Phone(0.5) + Location(0.5) + LinkedIn(0.5) + Name(0.5)
   let score = 0;
   if (hasName)     score += 0.5;
   if (hasEmail)    score += 1;
@@ -437,19 +437,32 @@ export function analyzeSummary(text) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// extractBullets(experience) → string[]
-// Extracts all bullet lines from experience descriptions
+// extractBullets(experience, projects) → string[]
+// BUG 8 FIX: Also extracts from project[] so C1/C2/C5 score student resumes correctly
 // ─────────────────────────────────────────────────────────────
-export function extractBullets(experience = []) {
+export function extractBullets(experience = [], projects = []) {
   const bullets = [];
+  const BULLET_STRIP = /^[\-•\*→▸►]\s*/;
+
   for (const job of experience) {
     if (!job.description) continue;
     const lines = job.description
       .split('\n')
-      .map(l => l.replace(/^[\-\•\*\→]\s*/, '').trim())
+      .map(l => l.replace(BULLET_STRIP, '').trim())
       .filter(l => l.length > 10);
     bullets.push(...lines);
   }
+
+  // BUG 8 FIX — critical for students: include project bullets
+  for (const proj of projects) {
+    if (!proj.description) continue;
+    const lines = proj.description
+      .split('\n')
+      .map(l => l.replace(BULLET_STRIP, '').trim())
+      .filter(l => l.length > 10);
+    bullets.push(...lines);
+  }
+
   return bullets;
 }
 

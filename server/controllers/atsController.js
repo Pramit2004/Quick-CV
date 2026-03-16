@@ -1,29 +1,121 @@
 /**
- * atsController.js
- * ─────────────────────────────────────────────────────────────
- * ATS Checker API handlers.
- *
- * Endpoints:
- *   POST /api/ats/analyze/:resumeId   — analyze stored Quick-CV resume
- *   POST /api/ats/analyze/upload      — analyze uploaded PDF/DOCX
- *   GET  /api/ats/report/:reportId    — get a stored ATS report
- *   GET  /api/ats/history             — user's ATS history
- *   GET  /api/ats/admin/overview      — admin aggregate analytics
- *   GET  /api/ats/admin/score-dist    — admin score distribution
- *   GET  /api/ats/admin/common-issues — admin common issues analysis
- *   GET  /api/ats/admin/user/:userId  — admin per-user ATS data
- * ─────────────────────────────────────────────────────────────
+ * atsController.js — FIXED VERSION
+ * Key fixes:
+ *  1. Route ordering: /analyze/upload registered before /analyze/:resumeId
+ *  2. saveATSReport stores the FULL analysis object (Mixed schema)
+ *  3. History returns correct score field (scores.final not scores.overall)
+ *  4. parsedContent stored so user can verify parsing
+ *  5. Admin per-user detail returns full reports with all fields
+ *  6. AI enhance endpoint added
  */
 
 import Resume    from '../models/Resume.js';
 import ATSReport from '../models/ATSReport.js';
+import ai        from '../configs/ai.js';
 import { analyzeResume }          from '../services/atsEngine.js';
 import { extractTextFromBuffer, textToResumeData, validateFile } from '../services/documentParser.js';
 
 // ─────────────────────────────────────────────────────────────
+// saveATSReport — stores the FULL analysis in MongoDB
+// The entire `analysis` object goes in as Mixed fields
+// ─────────────────────────────────────────────────────────────
+async function saveATSReport(userId, resumeId, analysis, source, title = '', rawText = '', resumeData = {}) {
+  const a = analysis;
+
+  const reportData = {
+    userId,
+    resumeId:    resumeId || null,
+    resumeTitle: title,
+    source,
+
+    // ── Full scores object preserved (Mixed) ──────────────
+    // Client reads: s.final, s.structure.score, s.breakdown.A.A1 etc.
+    scores: a.scores,
+
+    // ── Parsing metadata ──────────────────────────────────
+    parsing: {
+      sectionsFound:        resumeData._sectionsFound || a.meta?.sectionsFound || [],
+      sectionsMissing:      a.meta?.missingSections   || [],
+      hasEmail:             a.contact?.hasEmail    || false,
+      hasPhone:             a.contact?.hasPhone    || false,
+      hasLocation:          a.contact?.hasLocation || false,
+      hasLinkedIn:          a.contact?.hasLinkedIn || false,
+      hasLinkedInWord:      a.contact?.hasLinkedInWord || false,
+      bulletPointsUsed:     (a.experience?.totalBullets || 0) > 0 || (resumeData.project?.length || 0) > 0,
+      experienceEntryCount: a.experience?.entryCount || 0,
+      careerLevel:          a.meta?.careerLevel || 'unknown',
+    },
+
+    // ── Raw parsed content (for "Parsed Content" tab) ─────
+    parsedContent: {
+      rawText:             rawText.substring(0, 8000),
+      personalInfo:        a.contact || {},
+      professionalSummary: resumeData.professional_summary || '',
+      skills:              resumeData.skills || a.skills?.topSkills || [],
+      experienceCount:     a.experience?.entryCount || 0,
+      educationCount:      a.education?.entryCount  || 0,
+      projectCount:        a.projects?.count        || resumeData.project?.length || 0,
+      wordCount:           a.meta?.wordCount        || 0,
+      careerLevel:         a.meta?.careerLevel      || 'unknown',
+      sectionsFound:       resumeData._sectionsFound || [],
+    },
+
+    // ── Full analysis sub-objects ─────────────────────────
+    keywords: {
+      found:      a.keywords?.found      || [],
+      missing:    a.keywords?.missing    || [],
+      totalWords: a.meta?.wordCount      || 0,
+      density:    a.keywords?.density    || 0,
+      domain:     a.keywords?.domain     || {},
+      tfidf:      a.keywords?.tfidf      || [],
+      totalFound: a.keywords?.totalFound || 0,
+    },
+
+    contact:    a.contact    || {},
+    experience: a.experience || {},
+    education:  a.education  || {},
+    skills:     a.skills     || {},
+    projects:   a.projects   || {},
+    summary:    a.summary    || {},
+
+    writing:    a.writing    || {},
+
+    atsCompatibility: {
+      simulation: a.atsCompatibility?.simulation || {},
+      issues:     a.atsCompatibility?.format?.issues   || [],
+      warnings:   a.atsCompatibility?.format?.warnings || [],
+    },
+
+    advanced:    a.advanced    || {},
+    suggestions: a.suggestions || [],
+
+    meta:         a.meta         || {},
+    wordCount:    a.meta?.wordCount || 0,
+    modelVersion: a.meta?.engineVersion || '2.0.0',
+  };
+
+  // Upsert: if a report exists for this resume, replace it
+  if (resumeId) {
+    const existing = await ATSReport.findOne({ resumeId });
+    if (existing) {
+      Object.assign(existing, reportData);
+      existing.markModified('scores');
+      existing.markModified('writing');
+      existing.markModified('keywords');
+      existing.markModified('atsCompatibility');
+      existing.markModified('advanced');
+      existing.markModified('suggestions');
+      existing.markModified('parsedContent');
+      return existing.save();
+    }
+  }
+
+  return ATSReport.create(reportData);
+}
+
+// ─────────────────────────────────────────────────────────────
 // analyzeStoredResume
 // POST /api/ats/analyze/:resumeId
-// Analyzes a resume that already exists in the DB
 // ─────────────────────────────────────────────────────────────
 export const analyzeStoredResume = async (req, res) => {
   try {
@@ -31,45 +123,38 @@ export const analyzeStoredResume = async (req, res) => {
     const userId       = req.userId;
     const forceRefresh = req.query.refresh === 'true';
 
-    // Load resume — verify ownership
     const resume = await Resume.findOne({ _id: resumeId, userId });
     if (!resume) return res.status(404).json({ message: 'Resume not found' });
 
-    // Return cached report if fresh (< 1 hour old) and not forcing refresh
+    // Cache: return existing fresh report (< 1h old) unless forced
     if (!forceRefresh && resume.atsReport) {
       const existing = await ATSReport.findById(resume.atsReport);
       if (existing) {
-        const ageMs = Date.now() - existing.updatedAt;
-        if (ageMs < 60 * 60 * 1000) { // 1 hour cache
+        const ageMs = Date.now() - new Date(existing.updatedAt).getTime();
+        if (ageMs < 60 * 60 * 1000) {
           return res.json({ report: existing, cached: true });
         }
       }
     }
 
-    // Build resumeData from stored Resume fields
     const resumeData = {
-      personal_info:         resume.personal_info || {},
-      professional_summary:  resume.professional_summary || '',
-      skills:                resume.skills || [],
-      experience:            resume.experience || [],
-      education:             resume.education  || [],
-      project:               resume.project    || [],
+      personal_info:        resume.personal_info        || {},
+      professional_summary: resume.professional_summary || '',
+      skills:               resume.skills               || [],
+      experience:           resume.experience           || [],
+      education:            resume.education            || [],
+      project:              resume.project              || [],
     };
 
-    // Run analysis
     const analysis = await analyzeResume(resumeData, 'builder');
+    const report   = await saveATSReport(userId, resume._id, analysis, 'builder', resume.title || 'Untitled', '', resumeData);
 
-    // Persist report
-    const report = await saveATSReport(userId, resume._id, analysis, 'builder', resume.title);
-
-    // Update resume with latest ATS score
     await Resume.findByIdAndUpdate(resumeId, {
       atsScore:  analysis.scores.final,
       atsReport: report._id,
     });
 
     res.json({ report, cached: false });
-
   } catch (err) {
     console.error('ATS analyze error:', err);
     res.status(500).json({ message: 'ATS analysis failed', error: err.message });
@@ -79,18 +164,15 @@ export const analyzeStoredResume = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // analyzeUploadedResume
 // POST /api/ats/analyze/upload
-// Parses and analyzes a raw PDF/DOCX/TXT file upload
 // ─────────────────────────────────────────────────────────────
 export const analyzeUploadedResume = async (req, res) => {
   try {
     const userId = req.userId;
     const file   = req.file;
 
-    // Validate
     const validation = validateFile(file);
     if (!validation.valid) return res.status(400).json({ message: validation.error });
 
-    // Extract text
     let rawText;
     try {
       rawText = await extractTextFromBuffer(file.buffer, file.mimetype);
@@ -98,11 +180,12 @@ export const analyzeUploadedResume = async (req, res) => {
       return res.status(422).json({ message: `Could not read file: ${parseErr.message}` });
     }
 
-    if (!rawText || rawText.trim().length < 100) {
-      return res.status(422).json({ message: 'Could not extract enough text from the file. Please check it is not password-protected or image-only.' });
+    if (!rawText || rawText.trim().length < 50) {
+      return res.status(422).json({
+        message: 'Could not extract enough text. Please ensure the file is not image-only or password-protected.',
+      });
     }
 
-    // Parse to resume data structure
     let resumeData;
     try {
       resumeData = textToResumeData(rawText);
@@ -110,11 +193,13 @@ export const analyzeUploadedResume = async (req, res) => {
       return res.status(422).json({ message: `Document parsing failed: ${parseErr.message}` });
     }
 
-    // Run analysis
     const analysis = await analyzeResume(resumeData, 'upload');
-
-    // Save report (no resumeId link for uploads)
-    const report = await saveATSReport(userId, null, analysis, 'upload', file.originalname);
+    const report   = await saveATSReport(
+      userId, null, analysis, 'upload',
+      file.originalname || 'Uploaded Resume',
+      rawText,
+      resumeData
+    );
 
     res.json({
       report,
@@ -123,9 +208,9 @@ export const analyzeUploadedResume = async (req, res) => {
         sectionsFound: resumeData._sectionsFound || [],
         wordCount:     analysis.meta.wordCount,
         textLength:    rawText.length,
+        rawText:       rawText.substring(0, 2000), // preview
       },
     });
-
   } catch (err) {
     console.error('ATS upload analyze error:', err);
     res.status(500).json({ message: 'ATS analysis failed', error: err.message });
@@ -133,109 +218,11 @@ export const analyzeUploadedResume = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// saveATSReport — upserts the ATSReport document in MongoDB
-// ─────────────────────────────────────────────────────────────
-async function saveATSReport(userId, resumeId, analysis, source, title = '') {
-  const a = analysis;
-
-  const reportData = {
-    userId,
-    resumeId:  resumeId || null,
-    resumeTitle: title,
-    source,
-
-    // ── Scores ────────────────────────────────────────────
-    scores: {
-      overall:   a.scores.final,
-      structure: a.scores.structure.score,
-      content:   a.scores.content.score,
-      writing:   a.scores.writing.score,
-      ats:       a.scores.ats.score,
-      advanced:  a.scores.advanced.score,
-      label:     a.scores.label.label,
-
-      breakdown: a.scores.breakdown,
-    },
-
-    // ── Parsing / Structure ───────────────────────────────
-    parsing: {
-      sectionsFound:   [],
-      sectionsMissing: a.scores.breakdown.A ? [] : [],
-      hasEmail:        a.contact.hasEmail,
-      hasPhone:        a.contact.hasPhone,
-      hasLocation:     a.contact.hasLocation,
-      hasLinkedIn:     a.contact.hasLinkedIn,
-      bulletPointsUsed:     (a.experience.totalBullets || 0) > 0,
-      experienceEntryCount: a.experience.entryCount || 0,
-    },
-
-    // ── Keywords ──────────────────────────────────────────
-    keywords: {
-      found:      a.keywords.found,
-      missing:    a.keywords.missing,
-      totalWords: a.meta.wordCount,
-      density:    a.keywords.density,
-      domain:     a.keywords.domain,
-      tfidf:      a.keywords.tfidf,
-    },
-
-    // ── Content ───────────────────────────────────────────
-    content: {
-      weakVerbs:         a.writing.actionVerbs.weakSamples?.map(w => w.verb).filter(Boolean) || [],
-      strongVerbs:       a.writing.actionVerbs.strong,
-      verbDiversity:     a.writing.actionVerbs.diversity,
-      quantifiedBullets: a.writing.quantification.count,
-      totalBullets:      a.experience.totalBullets,
-      repetitiveWords:   a.writing.repetition.words.map(r => r.word),
-      estimatedPages:    Math.ceil((a.meta.wordCount || 0) / 400),
-      fluffWords:        a.writing.fluff.found,
-      readability:       a.writing.readability,
-      tenseConsistent:   a.writing.tenseConsistency.consistent,
-    },
-
-    // ── ATS Compatibility ─────────────────────────────────
-    atsCompatibility: {
-      simulation: a.atsCompatibility.simulation,
-      issues:     a.atsCompatibility.format.issues,
-      warnings:   a.atsCompatibility.format.warnings,
-    },
-
-    // ── Advanced ──────────────────────────────────────────
-    advanced: {
-      domainInference: a.advanced.domainInference,
-      hotSkillMatches: a.advanced.hotSkillMatches,
-      hasLinkedIn:     a.advanced.hasLinkedIn,
-      hasGitHub:       a.advanced.hasGitHub,
-    },
-
-    // ── Suggestions ───────────────────────────────────────
-    suggestions: a.suggestions,
-
-    // ── Meta ──────────────────────────────────────────────
-    modelVersion: a.meta.engineVersion,
-    wordCount:    a.meta.wordCount,
-  };
-
-  // Upsert: if a report exists for this resume, replace it
-  if (resumeId) {
-    const existing = await ATSReport.findOne({ resumeId });
-    if (existing) {
-      Object.assign(existing, reportData);
-      return existing.save();
-    }
-  }
-
-  return ATSReport.create(reportData);
-}
-
-// ─────────────────────────────────────────────────────────────
-// getReport
-// GET /api/ats/report/:reportId
+// getReport — GET /api/ats/report/:reportId
 // ─────────────────────────────────────────────────────────────
 export const getReport = async (req, res) => {
   try {
-    const { reportId } = req.params;
-    const report = await ATSReport.findOne({ _id: reportId, userId: req.userId });
+    const report = await ATSReport.findOne({ _id: req.params.reportId, userId: req.userId });
     if (!report) return res.status(404).json({ message: 'Report not found' });
     res.json(report);
   } catch (err) {
@@ -244,19 +231,17 @@ export const getReport = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// getUserHistory
-// GET /api/ats/history
-// Returns paginated ATS reports for the current user
+// getUserHistory — GET /api/ats/history
 // ─────────────────────────────────────────────────────────────
 export const getUserHistory = async (req, res) => {
   try {
     const page  = parseInt(req.query.page)  || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 20;
     const skip  = (page - 1) * limit;
 
     const [reports, total] = await Promise.all([
       ATSReport.find({ userId: req.userId })
-        .select('resumeTitle source scores.overall scores.label createdAt updatedAt resumeId')
+        .select('resumeTitle source scores parsedContent.wordCount createdAt updatedAt resumeId')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -273,11 +258,45 @@ export const getUserHistory = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// enhanceWithAI — POST /api/ats/enhance
+// AI improves resume content based on ATS suggestions
+// Does NOT add false info — only improves existing content
+// ─────────────────────────────────────────────────────────────
+export const enhanceWithAI = async (req, res) => {
+  try {
+    const { reportId, section, content } = req.body;
+    if (!content) return res.status(400).json({ message: 'No content provided' });
+
+    const systemPrompt = `You are an expert ATS resume optimizer. Your STRICT rules:
+1. NEVER invent, fabricate, or add false information
+2. ONLY improve/rephrase existing content
+3. Add quantifiers ONLY if implied (e.g., "managed team" → "managed team of 3-5 engineers" is NOT allowed unless team size is mentioned)
+4. Replace weak verbs with strong action verbs
+5. Make content more ATS-friendly with relevant keywords from the existing context
+6. Keep the same meaning, just stronger phrasing
+7. Return ONLY the improved text, no explanations
+
+Section being improved: ${section || 'general'}`;
+
+    const response = await ai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: `Improve this resume content:\n\n${content}` },
+      ],
+      max_tokens: 500,
+    });
+
+    res.json({ enhanced: response.choices[0].message.content });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // ADMIN ENDPOINTS
-// All require adminMiddleware (added in route file)
 // ─────────────────────────────────────────────────────────────
 
-// GET /api/ats/admin/overview
 export const adminOverview = async (req, res) => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -293,23 +312,22 @@ export const adminOverview = async (req, res) => {
     ] = await Promise.all([
       ATSReport.countDocuments(),
       ATSReport.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-      ATSReport.aggregate([{ $group: { _id: null, avg: { $avg: '$scores.overall' } } }]),
+      ATSReport.aggregate([{ $group: { _id: null, avg: { $avg: '$scores.final' } } }]),
       ATSReport.countDocuments({ source: 'builder' }),
       ATSReport.countDocuments({ source: 'upload' }),
-      ATSReport.countDocuments({ 'scores.overall': { $gte: 75 } }),
-      ATSReport.countDocuments({ 'scores.overall': { $lt: 45 } }),
+      ATSReport.countDocuments({ 'scores.final': { $gte: 75 } }),
+      ATSReport.countDocuments({ 'scores.final': { $lt: 45 } }),
     ]);
 
     const avgScore = avgScoreResult[0]?.avg || 0;
 
-    // Score trend over last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const dailyScores = await ATSReport.aggregate([
       { $match: { createdAt: { $gte: sevenDaysAgo } } },
       {
         $group: {
           _id:      { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          avgScore: { $avg: '$scores.overall' },
+          avgScore: { $avg: '$scores.final' },
           count:    { $sum: 1 },
         },
       },
@@ -319,12 +337,12 @@ export const adminOverview = async (req, res) => {
     res.json({
       totalReports,
       reportsThisMonth,
-      avgScore:        Math.round(avgScore * 10) / 10,
+      avgScore:       Math.round(avgScore * 10) / 10,
       builderCount,
       uploadCount,
       highScoreCount,
       lowScoreCount,
-      passRate:        totalReports > 0 ? Math.round((highScoreCount / totalReports) * 100) : 0,
+      passRate:       totalReports > 0 ? Math.round((highScoreCount / totalReports) * 100) : 0,
       dailyScores,
     });
   } catch (err) {
@@ -332,16 +350,15 @@ export const adminOverview = async (req, res) => {
   }
 };
 
-// GET /api/ats/admin/score-distribution
 export const adminScoreDistribution = async (req, res) => {
   try {
     const distribution = await ATSReport.aggregate([
       {
         $bucket: {
-          groupBy:    '$scores.overall',
+          groupBy:    '$scores.final',
           boundaries: [0, 20, 40, 60, 75, 90, 101],
           default:    'other',
-          output:     { count: { $sum: 1 }, avgScore: { $avg: '$scores.overall' } },
+          output:     { count: { $sum: 1 }, avgScore: { $avg: '$scores.final' } },
         },
       },
     ]);
@@ -353,90 +370,41 @@ export const adminScoreDistribution = async (req, res) => {
       avgScore: Math.round((d.avgScore || 0) * 10) / 10,
     }));
 
-    // Category average scores
-    const categoryAvgs = await ATSReport.aggregate([
-      {
-        $group: {
-          _id:       null,
-          structure: { $avg: '$scores.structure' },
-          content:   { $avg: '$scores.content' },
-          writing:   { $avg: '$scores.writing' },
-          ats:       { $avg: '$scores.ats' },
-          advanced:  { $avg: '$scores.advanced' },
-        },
-      },
-    ]);
-
-    const avgs = categoryAvgs[0] || {};
-
-    res.json({
-      distribution: formatted,
-      categoryAverages: {
-        structure: Math.round((avgs.structure || 0) * 10) / 10,
-        content:   Math.round((avgs.content   || 0) * 10) / 10,
-        writing:   Math.round((avgs.writing   || 0) * 10) / 10,
-        ats:       Math.round((avgs.ats       || 0) * 10) / 10,
-        advanced:  Math.round((avgs.advanced  || 0) * 10) / 10,
-      },
-    });
+    res.json({ distribution: formatted });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// GET /api/ats/admin/common-issues
 export const adminCommonIssues = async (req, res) => {
   try {
-    // Most common missing keywords
-    const missingKW = await ATSReport.aggregate([
-      { $unwind: '$keywords.missing' },
-      { $group: { _id: '$keywords.missing', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 15 },
-    ]);
-
-    // Most common weak verbs
-    const weakVerbs = await ATSReport.aggregate([
-      { $unwind: '$content.weakVerbs' },
-      { $match: { 'content.weakVerbs': { $ne: null, $ne: '' } } },
-      { $group: { _id: '$content.weakVerbs', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 },
-    ]);
-
-    // Most common fluff words
-    const fluffWords = await ATSReport.aggregate([
-      { $unwind: '$content.fluffWords' },
-      { $group: { _id: '$content.fluffWords', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 },
-    ]);
-
-    // % of resumes missing key sections
-    const total = await ATSReport.countDocuments();
-    const missingContact  = await ATSReport.countDocuments({ 'parsing.hasEmail': false });
-    const missingPhone    = await ATSReport.countDocuments({ 'parsing.hasPhone': false });
-    const missingLinkedIn = await ATSReport.countDocuments({ 'parsing.hasLinkedIn': false });
-    const lowQuantified   = await ATSReport.countDocuments({ 'content.quantifiedBullets': { $lt: 2 } });
-
-    // Most common domains
-    const domains = await ATSReport.aggregate([
-      { $group: { _id: '$keywords.domain.domain', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 },
+    const [missingKW, weakVerbs, fluffWords, total] = await Promise.all([
+      ATSReport.aggregate([
+        { $unwind: '$keywords.missing' },
+        { $group: { _id: '$keywords.missing', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 15 },
+      ]),
+      ATSReport.aggregate([
+        { $unwind: '$writing.actionVerbs.weakSamples' },
+        { $match: { 'writing.actionVerbs.weakSamples.verb': { $ne: null, $ne: '' } } },
+        { $group: { _id: '$writing.actionVerbs.weakSamples.verb', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      ATSReport.aggregate([
+        { $unwind: '$writing.fluff.found' },
+        { $group: { _id: '$writing.fluff.found', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      ATSReport.countDocuments(),
     ]);
 
     res.json({
       missingKeywords: missingKW.map(k => ({ keyword: k._id, count: k.count })),
       weakVerbs:       weakVerbs.map(v => ({ verb: v._id, count: v.count })),
       fluffWords:      fluffWords.map(f => ({ word: f._id, count: f.count })),
-      sectionIssues: {
-        missingEmail:    total > 0 ? Math.round((missingContact  / total) * 100) : 0,
-        missingPhone:    total > 0 ? Math.round((missingPhone    / total) * 100) : 0,
-        missingLinkedIn: total > 0 ? Math.round((missingLinkedIn / total) * 100) : 0,
-        lowQuantification: total > 0 ? Math.round((lowQuantified / total) * 100) : 0,
-      },
-      topDomains: domains.map(d => ({ domain: d._id || 'general', count: d.count })),
       total,
     });
   } catch (err) {
@@ -444,7 +412,6 @@ export const adminCommonIssues = async (req, res) => {
   }
 };
 
-// GET /api/ats/admin/users
 export const adminUsersList = async (req, res) => {
   try {
     const page  = parseInt(req.query.page)  || 1;
@@ -457,8 +424,8 @@ export const adminUsersList = async (req, res) => {
           $group: {
             _id:          '$userId',
             reportCount:  { $sum: 1 },
-            avgScore:     { $avg: '$scores.overall' },
-            bestScore:    { $max: '$scores.overall' },
+            avgScore:     { $avg: '$scores.final' },
+            bestScore:    { $max: '$scores.final' },
             lastAnalyzed: { $max: '$createdAt' },
           },
         },
@@ -476,7 +443,7 @@ export const adminUsersList = async (req, res) => {
         {
           $project: {
             userId:       '$_id',
-            name:         { $arrayElemAt: ['$user.name', 0] },
+            name:         { $arrayElemAt: ['$user.name',  0] },
             email:        { $arrayElemAt: ['$user.email', 0] },
             reportCount:  1,
             avgScore:     { $round: ['$avgScore', 1] },
@@ -494,21 +461,27 @@ export const adminUsersList = async (req, res) => {
   }
 };
 
-// GET /api/ats/admin/user/:userId
+// GET /api/ats/admin/user/:userId — full detail per user with all reports
 export const adminUserDetail = async (req, res) => {
   try {
     const { userId } = req.params;
-    const reports = await ATSReport.find({ userId })
-      .select('resumeTitle source scores createdAt keywords.domain atsCompatibility.simulation')
+
+    const reports = await ATSReport
+      .find({ userId })
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(50);
 
     if (!reports.length) return res.status(404).json({ message: 'No ATS reports found for this user' });
 
-    const scores = reports.map(r => r.scores.overall);
+    const scores  = reports.map(r => r.scores?.final || 0);
     const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 
+    // Lookup user info
+    const User = (await import('../models/User.js')).default;
+    const user = await User.findById(userId).select('name email').lean();
+
     res.json({
+      user,
       reports,
       summary: {
         totalReports: reports.length,
