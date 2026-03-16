@@ -321,7 +321,7 @@ const JDMatch = () => {
         <div className="w-full max-w-lg z-10">
           <Link
             to="/app"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors mb-10"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors mb-4"
           >
             <ArrowLeftIcon className="size-4" /> Back to Dashboard
           </Link>
