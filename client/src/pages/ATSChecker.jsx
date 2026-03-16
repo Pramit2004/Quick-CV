@@ -145,7 +145,7 @@ const ATSMeter = ({ sim }) => {
             <span className="w-5 text-base shrink-0">{p.icon}</span>
             <div className="w-20 shrink-0">
               <div className="text-xs font-bold text-slate-700">{p.name}</div>
-              <div className="text-[9px] text-slate-400 leading-tight">{p.desc}</div>
+              <div className="text-[9.5px] text-slate-600 leading-tight">{p.desc}</div>
             </div>
             <div className="flex-1 bg-slate-100 rounded-full h-2.5">
               <div className="h-2.5 rounded-full transition-all duration-700" style={{ width: `${p.score}%`, background: c }} />
@@ -640,15 +640,20 @@ const ATSChecker = () => {
   // ─────────────────────────────────────────────────────────────
   if (mode === 'choose') return (
     <div className='min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/20 p-4 md:p-8'style={{ backgroundColor: '#F4F6F3', backgroundImage: `linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)`, backgroundSize: '32px 32px' }}>
-      <div className="max-w-4xl mx-auto">
-
+      <div className="max-w-4xl mx-auto mb-0 pt-0 text-center">
+                <Link
+                    to="/app"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors mb-4"
+                  >
+                    <ArrowLeftIcon className="size-4" /> Back to Dashboard
+                  </Link>
         {/* Hero */}
-        <div className="text-center mb-12 pt-4">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 px-5 py-2 rounded-full text-sm font-bold mb-6 border border-emerald-100 shadow-sm">
+        <div className="text-center mb-2 pt-0">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 px-5 py-2 rounded-full text-sm font-bold mb-4 border border-emerald-100 shadow-sm">
             <ShieldCheckIcon size={15} className="text-emerald-500" />
             ATS Resume Intelligence
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 leading-tight tracking-tight">
+          <h1 className="text-4xl md:text-4xl font-black text-slate-900 mb-4 leading-tight tracking-tight">
             Know Exactly How ATS
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500">
               Reads Your Resume
@@ -663,12 +668,12 @@ const ATSChecker = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
           <button onClick={() => setMode('builder')}
             className="group relative bg-white rounded-3xl p-8 border-2 border-slate-100 hover:border-emerald-400 hover:shadow-2xl hover:shadow-emerald-100/60 transition-all duration-300 text-left overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-50 to-transparent rounded-bl-full opacity-60 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-300 to-transparent rounded-bl-full opacity-60 group-hover:opacity-100 transition-opacity" />
             <div className="relative">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center mb-6 shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform">
                 <FileTextIcon size={26} className="text-white" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">Quick-CV Resume</h3>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Quick-CV Resume</h3>
               <p className="text-slate-400 text-sm leading-relaxed mb-6">Analyze any resume you've built in Quick-CV. Instant deep analysis — no upload needed.</p>
               <div className="flex items-center gap-2 text-emerald-600 text-sm font-bold group-hover:gap-3 transition-all">
                 Choose a resume <ChevronRightIcon size={16} />
@@ -678,12 +683,12 @@ const ATSChecker = () => {
 
           <button onClick={() => setMode('upload')}
             className="group relative bg-white rounded-3xl p-8 border-2 border-slate-100 hover:border-violet-400 hover:shadow-2xl hover:shadow-violet-100/60 transition-all duration-300 text-left overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-50 to-transparent rounded-bl-full opacity-60 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-300 to-transparent rounded-bl-full opacity-60 group-hover:opacity-100 transition-opacity" />
             <div className="relative">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-violet-200 group-hover:scale-105 transition-transform">
                 <UploadCloudIcon size={26} className="text-white" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">Upload a Resume</h3>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Upload a Resume</h3>
               <p className="text-slate-400 text-sm leading-relaxed mb-6">Upload any PDF, DOCX, or TXT resume. Our world-class parser extracts and scores everything.</p>
               <div className="flex items-center gap-2 text-violet-600 text-sm font-bold group-hover:gap-3 transition-all">
                 Upload file <ChevronRightIcon size={16} />
@@ -726,12 +731,12 @@ const ATSChecker = () => {
   if (mode === 'builder') return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/20 p-4 md:p-8" style={{ backgroundColor: '#F4F6F3', backgroundImage: `linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)`, backgroundSize: '32px 32px' }}>
       <div className="max-w-2xl mx-auto">
-        <button onClick={() => setMode('choose')} className="flex items-center gap-2 text-slate-400 hover:text-slate-700 text-sm font-medium mb-8 group">
+        <button onClick={() => setMode('choose')} className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium mb-4 group">
           <ArrowLeftIcon size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Back
         </button>
 
-        <div className="mb-8">
-          <h2 className="text-3xl font-black text-slate-900 mb-1">Choose a Resume</h2>
+        <div className="mb-2">
+          <h2 className="text-2xl font-black text-slate-900 mb-1">Choose a Resume</h2>
           <p className="text-slate-400">Select which resume to analyze with our ATS engine</p>
         </div>
 
@@ -786,12 +791,11 @@ const ATSChecker = () => {
   if (mode === 'upload') return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/20 p-4 md:p-8" style={{ backgroundColor: '#F4F6F3', backgroundImage: `linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)`, backgroundSize: '32px 32px' }}>
       <div className="max-w-lg mx-auto">
-        <button onClick={() => setMode('choose')} className="flex items-center gap-2 text-slate-400 hover:text-slate-700 text-sm font-medium mb-8 group">
+        <button onClick={() => setMode('choose')} className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium mb-4 group">
           <ArrowLeftIcon size={14} className="group-hover:-translate-x-0.5 transition-transform" /> Back
         </button>
-        <div className="mb-8">
-          <h2 className="text-3xl font-black text-slate-900 mb-1">Upload Resume</h2>
-          <p className="text-slate-400">PDF, DOCX, or TXT · Max 5MB</p>
+        <div className="mb-2">
+          <h2 className="text-2xl font-black text-slate-900 mb-1">Upload Resume</h2>
         </div>
 
         <div
@@ -800,30 +804,30 @@ const ATSChecker = () => {
           onDragLeave={() => setIsDragging(false)}
           onDrop={e => { e.preventDefault(); setIsDragging(false); handleFile(e.dataTransfer.files[0]); }}
           onClick={() => document.getElementById('ats-file').click()}
-          className={`relative rounded-3xl border-2 border-dashed p-12 text-center cursor-pointer transition-all duration-200 ${
+          className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-300 bg-white/80 ${
             isDragging
-              ? 'border-violet-400 bg-emerald-50/50 scale-[1.01]'
+              ? "border-emerald-500 bg-emerald-50/50 scale-[1.02]"
               : file
               ? 'border-emerald-600 bg-emerald-50/30'
-              : 'border-slate-400 hover:border-emerald-800 hover:bg-violet-50/20'
+              :"border-slate-200 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/5"
           }`}>
           <input id="ats-file" type="file" accept=".pdf" className="hidden" onChange={e => handleFile(e.target.files[0])} />
           {file ? (
             <>
-              <div className="w-16 h-16 bg-emerald-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FileTextIcon size={28} className="text-emerald-600" />
+              <div className="size-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                <FileTextIcon size={28} className="size-6 text-emerald-600" />
               </div>
               <p className="font-bold text-emerald-700">{fileName}</p>
               <p className="text-xs text-slate-400 mt-1">{(file.size / 1024).toFixed(0)} KB · Click to change</p>
             </>
           ) : (
             <>
-              <div className="w-16 h-16 bg-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <UploadCloudIcon size={28} className="text-slate-600" />
+              <div className="size-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+              <UploadCloudIcon className="size-6 text-emerald-600" />
               </div>
               <p className="font-bold text-slate-600">Drop your resume here</p>
               <p className="text-sm text-slate-500 mt-1">or click to browse files</p>
-              <p className="text-xs text-slate-500 mt-3">PDF</p>
+              <p className="text-xs text-slate-500 mt-3">Max - 5MB</p>
             </>
           )}
         </div>
@@ -874,7 +878,7 @@ const ATSChecker = () => {
   if (mode === 'history') return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50/20 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
-        <button onClick={() => setMode('choose')} className="flex items-center gap-2 text-slate-400 hover:text-slate-700 text-sm font-medium mb-8 group">
+        <button onClick={() => setMode('choose')} className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium mb-4 group">
           <ArrowLeftIcon size={14} className="group-hover:-translate-x-0.5 transition-transform"/> Back
         </button>
         <h2 className="text-3xl font-black text-slate-900 mb-6">Analysis History</h2>
@@ -970,22 +974,22 @@ const ATSChecker = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-emerald-50" style={{ backgroundColor: '#F4F6F3', backgroundImage: `linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)`, backgroundSize: '32px 32px' }}>
       {/* Top bar */}
-      <div className="bg-white/80 backdrop-blur border-b border-slate-100 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+      <div className="px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 " style={{ backgroundColor: '#F4F6F3', backgroundImage: `linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.05) 1px, transparent 1px)`, backgroundSize: '32px 32px' }}>
         <button onClick={() => { setMode('choose'); setReport(null); setAiResult(null); }}
-          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-medium group">
+          className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium group">
           <ArrowLeftIcon size={13} className="group-hover:-translate-x-0.5 transition-transform" /> New Analysis
         </button>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400 hidden md:block truncate max-w-[180px]">{report.resumeTitle || 'Uploaded Resume'}</span>
+          <span className="text-xs text-slate-800 hidden md:block truncate max-w-[180px]">{report.resumeTitle || 'Uploaded Resume'}</span>
           {careerLvl && careerLvl !== 'unknown' && (
-            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-600 border border-blue-100">
               {careerLvl === 'student' ? '🎓 Student' : careerLvl === 'entry' ? '🌱 Entry' : careerLvl === 'mid' ? '⚡ Mid-Level' : '🏆 Senior'}
             </span>
           )}
           <button onClick={loadHistory}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-colors">
+            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-xl transition-colors">
             <ClockIcon size={11}/> History
           </button>
         </div>
@@ -1011,7 +1015,7 @@ const ATSChecker = () => {
             <div className="mt-4 w-full grid grid-cols-2 gap-2">
               <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
                 <div className="text-lg font-black text-slate-800">{safeNum(report.wordCount || report.meta?.wordCount)}</div>
-                <div className="text-[10px] text-slate-400 font-medium">Words</div>
+                <div className="text-[10px] text-slate-600 font-medium">Words</div>
               </div>
               <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
                 <div className="text-lg font-black text-slate-800">
@@ -1019,7 +1023,7 @@ const ATSChecker = () => {
                     ? safeNum(report.experience?.entryCount || report.parsing?.experienceEntryCount)
                     : safeNum(report.projects?.count || report.parsedContent?.projectCount)}
                 </div>
-                <div className="text-[10px] text-slate-400 font-medium">
+                <div className="text-[10px] text-slate-600 font-medium">
                   {(report.experience?.entryCount || 0) > 0 ? 'Jobs' : 'Projects'}
                 </div>
               </div>
@@ -1028,7 +1032,7 @@ const ATSChecker = () => {
 
           {/* Radar */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
-            <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Category Breakdown</div>
+            <div className="text-xs font-black text-slate-600 uppercase tracking-widest mb-1">Category Breakdown</div>
             <CategoryRadar scores={s} />
           </div>
 
@@ -1232,7 +1236,7 @@ const ATSChecker = () => {
                 <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
                   <h3 className="font-black text-slate-800 text-sm mb-3">Readability</h3>
                   {report.writing?.readability ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 ">
                       {[
                         { label: 'Flesch-Kincaid Grade', val: report.writing.readability.fleschKincaid, ideal: '8–12', good: v => v >= 8 && v <= 12 },
                         { label: 'Gunning Fog Index',    val: report.writing.readability.gunningFog,    ideal: '8–14', good: v => v >= 8 && v <= 14 },
@@ -1240,7 +1244,7 @@ const ATSChecker = () => {
                         <div key={r.label} className="flex items-center justify-between">
                           <span className="text-xs text-slate-500">{r.label}</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-400">ideal: {r.ideal}</span>
+                            <span className="text-[10.5px] text-slate-600">ideal: {r.ideal}</span>
                             <span className={`text-sm font-black tabular-nums ${r.good(safeNum(r.val)) ? 'text-emerald-600' : 'text-amber-500'}`}>
                               {safeNum(r.val).toFixed(1)}
                             </span>
@@ -1324,7 +1328,7 @@ const ATSChecker = () => {
                 <div className="bg-white rounded-2xl p-5 border border-slate-100">
                   <h3 className="font-black text-slate-800 text-sm mb-4">ATS System Compatibility</h3>
                   <ATSMeter sim={report.atsCompatibility?.simulation} />
-                  <p className="text-[10px] text-slate-400 mt-3 text-center">Simulated using each ATS platform's known keyword weighting and parsing behavior.</p>
+                  <p className="text-[10.5px] text-slate-800 mt-3 text-center">Simulated using each ATS platform's known keyword weighting and parsing behavior.</p>
                 </div>
 
                 <div className="bg-white rounded-2xl p-5 border border-slate-100">
@@ -1395,8 +1399,8 @@ const ATSChecker = () => {
                     <div key={label} className="bg-white rounded-2xl p-4 text-center border border-slate-100 shadow-sm">
                       <Icon size={18} className="text-emerald-500 mx-auto mb-2" />
                       <div className="text-3xl font-black text-slate-800 tabular-nums">{safeNum(val)}</div>
-                      <div className="text-xs font-bold text-slate-500">{label}</div>
-                      <div className="text-[9px] text-slate-400">{note}</div>
+                      <div className="text-xs font-bold text-slate-700">{label}</div>
+                      <div className="text-[10px] text-slate-600">{note}</div>
                     </div>
                   ))}
                 </div>
