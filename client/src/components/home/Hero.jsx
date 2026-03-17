@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 const Hero = () => {
 
-    const {user} = useSelector(state => state.auth)
+    const { user, loading } = useSelector(state => state.auth)
 
     const [menuOpen, setMenuOpen] = React.useState(false);
 
@@ -34,15 +34,22 @@ const Hero = () => {
             </div>
 
             <div className="flex gap-2">
-                <Link to='/app?state=register' className="hidden md:block px-6 py-2 bg-green-500 hover:bg-green-700 active:scale-95 transition-all rounded-full text-white" hidden={user}>
-                    Get started
-                </Link>
-                <Link to='/app?state=login' className="hidden md:block px-6 py-2 border active:scale-95 hover:bg-slate-50 transition-all rounded-full text-slate-700 hover:text-slate-900" hidden={user}>
-                    Login
-                </Link>
-                <Link to='/app' className='hidden md:block px-8 py-2 bg-green-500 hover:bg-green-700 active:scale-95 transition-all rounded-full text-white' hidden={!user}>
-                    Dashboard
-                </Link>
+                {loading ? (
+                    <div className="hidden md:block w-24 h-9 rounded-full bg-slate-100 animate-pulse" />
+                ) : !user ? (
+                  <>
+                    <Link to='/app?state=register' className="hidden md:block px-6 py-2 bg-green-500 hover:bg-green-700 active:scale-95 transition-all rounded-full text-white">
+                        Get started
+                    </Link>
+                    <Link to='/app?state=login' className="hidden md:block px-6 py-2 border active:scale-95 hover:bg-slate-50 transition-all rounded-full text-slate-700 hover:text-slate-900">
+                        Login
+                    </Link>
+                  </>
+                ) : (
+                    <Link to='/app' className='hidden md:block px-8 py-2 bg-green-500 hover:bg-green-700 active:scale-95 transition-all rounded-full text-white'>
+                        Dashboard
+                    </Link>
+                )}
             </div>
 
             <button onClick={() => setMenuOpen(true)} className="md:hidden active:scale-90 transition" >
